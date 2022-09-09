@@ -102,8 +102,28 @@ func NewRingpopFactory(
 
 // ValidateRingpopConfig validates that ringpop config is parseable and valid
 func ValidateRingpopConfig(rpConfig *config.Membership) error {
-	if rpConfig.BroadcastAddress != "" && net.ParseIP(rpConfig.BroadcastAddress) == nil {
+	if rpConfig.BroadcastAddress == "" {
+		if clusterIP := getClusterIP(); clusterIP != nil {
+			rpConfig.BroadcastAddress = clusterIP.String()
+		}
+	} else if net.ParseIP(rpConfig.BroadcastAddress) == nil {
 		return fmt.Errorf("ringpop config malformed `broadcastAddress` param")
+	}
+	return nil
+}
+
+// getClusterIP get cluster ip
+func getClusterIP() net.IP {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return nil
+	}
+	for _, address := range addrs {
+		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				return ipnet.IP
+			}
+		}
 	}
 	return nil
 }
